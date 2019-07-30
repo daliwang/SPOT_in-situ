@@ -326,302 +326,302 @@ print('Frames updating finished,', '3D CNN starts...', '\n')
 
 with torch.cuda.device(0):
 
-#Net3D.load_state_dict(torch.load('model3D.ckpt'))  
-
-
-LabelS = Read_label('Inputs/Label') # Read the ground truth for actual measured nugget     
-# print('Type of Labels is ', type(Labels), ', Size of Labels is ', len(Labels)) # class 'list'. Size is the number of nugget ground truth
-
-Y=60 #For E040-44 96*104; For E68-72: 74*94; For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
-X=78
-
-Labels = torch.tensor(np.zeros(((len(LabelS), Y, X))))
-'''
-# For E068-072
-for i in range(8):
-    Labels[i,:,:] = LabelS[i][0,5:79,9:103]
-for i in range(2):
-    Labels[i+8,:,:]=LabelS[i+8][0,:,1:95]
-'''
-#for i in range(10): #For E040-044
-#    Labels[i,:,:] = LabelS[i][0,:,:] 
-
-#for i in range(6):# For E047-049
-#    Labels[i,:,:]=LabelS[i][0,1:105,1:185]
-
-   
-# For E063-067
-Lab=4
-for i in range(Lab):
-    Labels[i,:,:] = LabelS[i][0,:,1:79]
-for i in range(6):
-    Labels[i+Lab,:,:]=LabelS[i+Lab][0,5:65,1:79]
-
-#for i in range(10): #For E075-76 (81*100 to 66*90)
-#    Labels[i,:,:] = LabelS[i][0,7:73,5:95] 
-
-#for i in range(6):
-#    Labels[i,:,:] = LabelS[i][0,1:103,1:119]
-#for i in range(4):
-#    Labels[i+4,:,:]=LabelS[i+4][0,:,:]
-
-# labels shape are [# of considered,Y,X], type is torch.tensor
-#Labels = torch.cat(tuple(Labels)) # After this, Labels' size is [# of labels considered,96,104], type is torch.tensor
-# print(' After torch.cat, type of Labels is ' , type(Labels), ', size of Labels is ', Labels.shape)
-
-Labels = 255 * Labels 
-
-#Inputs=np.append(Input_13_50_7_45,Input_14_50_7_45,axis=0)
-#Inputs=np.append(Inputs,Input_15_50_7_45,axis=0)
-
-# data=np.load('Input_13.npy')
-
-#Inputs=np.load('Input_{:}_NoOtlrs.npy'.format(1)) # Load E040-E044
-#for i in range (9): 
-#    Inputs=np.append(Inputs,np.load('Input_{:}_NoOtlrs.npy'.format(i+2)),axis=0)
-
-Inputs=np.load('Input_{:}.npy'.format(1)) # Load E068-72
-#Inputs=np.load('Input_{:}.npy'.format(1)) # Load E050-E054
-#Inputs=np.load('Input_pix_{:}.npy'.format(1))
-for i in range (len(LabelS)-1): 
-    #Inputs=np.append(Inputs,np.load('Input_pix_{:}.npy'.format(i+2)),axis=0)
-    Inputs=np.append(Inputs,np.load('Input_{:}.npy'.format(i+2)),axis=0)
-    #Inputs=np.append(Inputs,np.load('Input_{:}.npy'.format(i+2)),axis=0)
-
-INputs= transforms.ToTensor()(Inputs)
-INputs = INputs.permute(1,2,0) # shape is [# of frames, height, width]
-# print('Type of INputs is ', type(INputs), ', Size of INputs is ',INputs.shape)
-# INputs = INputs.unsqueeze(0)
-# print('Shape of INputs is ', INputs.shape)
-
-Len_Frm = 30
-Num_Dat=int(INputs.shape[0]/Len_Frm) # Total num of datasets
-Tag=np.zeros(Num_Dat)
-Step=7
-Num_Tst=len(LabelS) # Num of datasets left as test datasets
-Num_EchDat=35 # Num of datasets for each video
-
-for i in range (int(Num_Dat/Num_EchDat)):# Store each sub-video dataset Tag to identify which nugget ground truth should be used.
-    Tag[Num_EchDat*i:Num_EchDat*i+Num_EchDat]=i # 0~(Num_EchDat-1): 0;  Num_EchDat~(2Num_EchDat-1): 1; ...9 
-
-Rodmlst=[] 
-Rodmlst=random.sample(range(0,Num_Dat),Num_Dat) # Permute sub-video datasets in a random order. from 0 to Tag.size-1, randomly select Tag.size number of values
-
-for epoch in range (10):
-    t1=time.time()
-    Pred_acc, Total = 0, 0    
-    Running_loss = 0.0
-    # print('\n', '3DCNN train epoch: {:} '.format(epoch+1))  
-    # F_scores = []
-    Pred_True = [] 
-    Real_True = []
-    Corr_True = []
+    #Net3D.load_state_dict(torch.load('model3D.ckpt'))  
     
-    adjust_lr(optimizer, epoch, lr_decay=15)
     
-    for i in range (Num_Dat-Num_Tst):# 135-6=129 For Max. 90-4=86 for Min
-        t3=time.time()
-        
-        print('\n', '3DCNN train epoch: {:} '.format(epoch+1), '  Num of training input: {:}'.format(i+1))
-        # print('\n', '  Num of training input: {:}'.format(i+1))
-        F_scores = []
-        
-        Tmp=Rodmlst[i]
-        INPUTS = INputs[Tmp*Len_Frm:(Tmp+1)*Len_Frm,:,:]
-        INPUTS = INPUTS.unsqueeze(0).unsqueeze(0)
-        #print('  Shape of INPUTS is ', INPUTS.shape)
-        
-        LABEL = Labels[int(Tag[Tmp]),:,:].unsqueeze(0).unsqueeze(0).unsqueeze(0) # Make it have 5 dimensions
-        # print('Type of LABEL is ', type(LABEL), ' Shape of LABEL is ', LABEL.shape)        
-        print('  NO. sub-video data is ',Tmp, ', NO. Label is ', int(Tag[Tmp]))
-        
-        #INPUTS = NewInpVid[i*Num_Sepa:Num_Sepa*(i+1),:,:]
-        #INPUTS = INPUT[i*Num_Sepa:Num_Sepa*(i+1),:,:]
-        
-        #INPUTS = INPUTS.unsqueeze(0).unsqueeze(0) # Extend 2 dimensions to INPUTS to make it to be 5 dimensions     
-        #print('  Shape of INPUTS is ', INPUTS.shape)
-        
-        #Labels = Read_label('Data\\Inputs\\Label') # Read the ground truth for actual measured nugget compared with 3D CNN output     
-        #Labels = 255 * Labels 
-        #print('\n', 'Size of Labels: ', Labels.size(), 'Type of Labels: ', type(Labels)) 
-        # [1,96,104], class: torch.Tensor
-        
-        optimizer.zero_grad()
-        #NewInpVid = transforms.ToTensor()(IpVide[0,0,303:391,:,:])# Original starts from 3.
-        
-        # NewInpVid = transforms.ToTensor()(NewInpVid[:,:,:])
+    LabelS = Read_label('Inputs/Label') # Read the ground truth for actual measured nugget     
+    # print('Type of Labels is ', type(Labels), ', Size of Labels is ', len(Labels)) # class 'list'. Size is the number of nugget ground truth
     
-        # NewInpVid = NewInpVid.permute(1,2,0) # Original NewInpVid has 3 dimensions
-        # print('Shape of NewInpVId = ', NewInpVid.shape, '\n')
-              
-        # NewInpVid = NewInpVid.unsqueeze(0).unsqueeze(0)      
-        # print('Shape of NewInpVId = ', NewInpVid.shape, '\n', 'Type of NewInpVid = ', type(NewInpVid))
+    Y=60 #For E040-44 96*104; For E68-72: 74*94; For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
+    X=78
+    
+    Labels = torch.tensor(np.zeros(((len(LabelS), Y, X))))
+    '''
+    # For E068-072
+    for i in range(8):
+        Labels[i,:,:] = LabelS[i][0,5:79,9:103]
+    for i in range(2):
+        Labels[i+8,:,:]=LabelS[i+8][0,:,1:95]
+    '''
+    #for i in range(10): #For E040-044
+    #    Labels[i,:,:] = LabelS[i][0,:,:] 
+    
+    #for i in range(6):# For E047-049
+    #    Labels[i,:,:]=LabelS[i][0,1:105,1:185]
+    
+       
+    # For E063-067
+    Lab=4
+    for i in range(Lab):
+        Labels[i,:,:] = LabelS[i][0,:,1:79]
+    for i in range(6):
+        Labels[i+Lab,:,:]=LabelS[i+Lab][0,5:65,1:79]
+    
+    #for i in range(10): #For E075-76 (81*100 to 66*90)
+    #    Labels[i,:,:] = LabelS[i][0,7:73,5:95] 
+    
+    #for i in range(6):
+    #    Labels[i,:,:] = LabelS[i][0,1:103,1:119]
+    #for i in range(4):
+    #    Labels[i+4,:,:]=LabelS[i+4][0,:,:]
+    
+    # labels shape are [# of considered,Y,X], type is torch.tensor
+    #Labels = torch.cat(tuple(Labels)) # After this, Labels' size is [# of labels considered,96,104], type is torch.tensor
+    # print(' After torch.cat, type of Labels is ' , type(Labels), ', size of Labels is ', Labels.shape)
+    
+    Labels = 255 * Labels 
+    
+    #Inputs=np.append(Input_13_50_7_45,Input_14_50_7_45,axis=0)
+    #Inputs=np.append(Inputs,Input_15_50_7_45,axis=0)
+    
+    # data=np.load('Input_13.npy')
+    
+    #Inputs=np.load('Input_{:}_NoOtlrs.npy'.format(1)) # Load E040-E044
+    #for i in range (9): 
+    #    Inputs=np.append(Inputs,np.load('Input_{:}_NoOtlrs.npy'.format(i+2)),axis=0)
+    
+    Inputs=np.load('Input_{:}.npy'.format(1)) # Load E068-72
+    #Inputs=np.load('Input_{:}.npy'.format(1)) # Load E050-E054
+    #Inputs=np.load('Input_pix_{:}.npy'.format(1))
+    for i in range (len(LabelS)-1): 
+        #Inputs=np.append(Inputs,np.load('Input_pix_{:}.npy'.format(i+2)),axis=0)
+        Inputs=np.append(Inputs,np.load('Input_{:}.npy'.format(i+2)),axis=0)
+        #Inputs=np.append(Inputs,np.load('Input_{:}.npy'.format(i+2)),axis=0)
+    
+    INputs= transforms.ToTensor()(Inputs)
+    INputs = INputs.permute(1,2,0) # shape is [# of frames, height, width]
+    # print('Type of INputs is ', type(INputs), ', Size of INputs is ',INputs.shape)
+    # INputs = INputs.unsqueeze(0)
+    # print('Shape of INputs is ', INputs.shape)
+    
+    Len_Frm = 30
+    Num_Dat=int(INputs.shape[0]/Len_Frm) # Total num of datasets
+    Tag=np.zeros(Num_Dat)
+    Step=7
+    Num_Tst=len(LabelS) # Num of datasets left as test datasets
+    Num_EchDat=35 # Num of datasets for each video
+    
+    for i in range (int(Num_Dat/Num_EchDat)):# Store each sub-video dataset Tag to identify which nugget ground truth should be used.
+        Tag[Num_EchDat*i:Num_EchDat*i+Num_EchDat]=i # 0~(Num_EchDat-1): 0;  Num_EchDat~(2Num_EchDat-1): 1; ...9 
+    
+    Rodmlst=[] 
+    Rodmlst=random.sample(range(0,Num_Dat),Num_Dat) # Permute sub-video datasets in a random order. from 0 to Tag.size-1, randomly select Tag.size number of values
+    
+    for epoch in range (10):
+        t1=time.time()
+        Pred_acc, Total = 0, 0    
+        Running_loss = 0.0
+        # print('\n', '3DCNN train epoch: {:} '.format(epoch+1))  
+        # F_scores = []
+        Pred_True = [] 
+        Real_True = []
+        Corr_True = []
         
-        Outputs = Net3D(INPUTS.float())
-        # Because it is known that there are 391 images input in total
-        # Output_size: [1,2,1,96,104]
+        adjust_lr(optimizer, epoch, lr_decay=15)
         
-        # Convert input to float is faster regarding running than converting model to double
+        for i in range (Num_Dat-Num_Tst):# 135-6=129 For Max. 90-4=86 for Min
+            t3=time.time()
+            
+            print('\n', '3DCNN train epoch: {:} '.format(epoch+1), '  Num of training input: {:}'.format(i+1))
+            # print('\n', '  Num of training input: {:}'.format(i+1))
+            F_scores = []
+            
+            Tmp=Rodmlst[i]
+            INPUTS = INputs[Tmp*Len_Frm:(Tmp+1)*Len_Frm,:,:]
+            INPUTS = INPUTS.unsqueeze(0).unsqueeze(0)
+            #print('  Shape of INPUTS is ', INPUTS.shape)
+            
+            LABEL = Labels[int(Tag[Tmp]),:,:].unsqueeze(0).unsqueeze(0).unsqueeze(0) # Make it have 5 dimensions
+            # print('Type of LABEL is ', type(LABEL), ' Shape of LABEL is ', LABEL.shape)        
+            print('  NO. sub-video data is ',Tmp, ', NO. Label is ', int(Tag[Tmp]))
+            
+            #INPUTS = NewInpVid[i*Num_Sepa:Num_Sepa*(i+1),:,:]
+            #INPUTS = INPUT[i*Num_Sepa:Num_Sepa*(i+1),:,:]
+            
+            #INPUTS = INPUTS.unsqueeze(0).unsqueeze(0) # Extend 2 dimensions to INPUTS to make it to be 5 dimensions     
+            #print('  Shape of INPUTS is ', INPUTS.shape)
+            
+            #Labels = Read_label('Data\\Inputs\\Label') # Read the ground truth for actual measured nugget compared with 3D CNN output     
+            #Labels = 255 * Labels 
+            #print('\n', 'Size of Labels: ', Labels.size(), 'Type of Labels: ', type(Labels)) 
+            # [1,96,104], class: torch.Tensor
+            
+            optimizer.zero_grad()
+            #NewInpVid = transforms.ToTensor()(IpVide[0,0,303:391,:,:])# Original starts from 3.
+            
+            # NewInpVid = transforms.ToTensor()(NewInpVid[:,:,:])
         
-        # Outputs = Net3D(NwFrame[0,0,3:390,:,:])
-        _, Predt=torch.max(Outputs, dim=1)
-        #print('\n','Size of Predt: ', Predt.size())
-        # Predt_size: [1,1,96,104], delete the 2nd dimension of Outputs. Because pick the highest probility of belonging to a class at each pixel
+            # NewInpVid = NewInpVid.permute(1,2,0) # Original NewInpVid has 3 dimensions
+            # print('Shape of NewInpVId = ', NewInpVid.shape, '\n')
+                  
+            # NewInpVid = NewInpVid.unsqueeze(0).unsqueeze(0)      
+            # print('Shape of NewInpVId = ', NewInpVid.shape, '\n', 'Type of NewInpVid = ', type(NewInpVid))
+            
+            Outputs = Net3D(INPUTS.float())
+            # Because it is known that there are 391 images input in total
+            # Output_size: [1,2,1,96,104]
+            
+            # Convert input to float is faster regarding running than converting model to double
+            
+            # Outputs = Net3D(NwFrame[0,0,3:390,:,:])
+            _, Predt=torch.max(Outputs, dim=1)
+            #print('\n','Size of Predt: ', Predt.size())
+            # Predt_size: [1,1,96,104], delete the 2nd dimension of Outputs. Because pick the highest probility of belonging to a class at each pixel
+            
+            # LABEL=Labels.long() No difference is incurred for labels by adding '.long()' regarding type and size.
+            # print('\n', 'Size of LABEL: ', LABEL.size(), 'Type of LABEL: ', type(LABEL)) 
+    
+            acc = compute_acc(Predt, LABEL.long())
+            Pred_acc += acc
+            Total += Y*X
+            print('  Average acc:', Pred_acc/Total)
+            
+            Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL.long())
+                # Total evaluated cells are 96*104*batch size
+                # print('Pred_True = ', len(Pred_True))
+                
+            for j in range(2): # Based on the number of classes
+                F_scores.append(2*Corr_True[j]/(Pred_True[j]+Real_True[j]))
+            print('Pred_outside pixels(0) =', Pred_True[0], ', Pred_onside pixels(0) =', Pred_True[1])
+            print('Real_outside pixels(0) =', Real_True[0], ', Real_onside pixels(0) =', Real_True[1])
+            print('  Corre_outside pixels(0) =', Corr_True[0], ', Corre_onside pixels(0) =', Corr_True[1])     
+            print('  F_scores:', F_scores)
+            
+            n,c,d,h,w=Outputs.size()# [1,2,1,96,104]
+            
+            Outputs = Outputs.transpose(1,2).transpose(2,3).transpose(3,4).contiguous().view(-1,c)
+            # After, outputs: [9984,2] ?
+                
+            LABEL = LABEL.view(-1).long() # Make labels to be 1 diamention by multiplying all original diamentions 
+            # : [9984]: from (1*1*1*96*104)
+            #print(' Max of LABEL is ', np.max(LABEL.numpy()), ', Min of LABEL is ', np.min(LABEL.numpy()))    
+            #print('\n','Shape of LABEL is ', LABEL.shape, ', Type of LABEL = ', type(LABEL))#[]
+            #print('Latest Output_size = ', Outputs.size())
+            # print('After Labels_size = ', Labels.size())
+            #print('   Max of Outputs is ', np.max(Outputs.numpy()[:,0]), ', Min of Outputs is ', np.min(Outputs.numpy()[:,0]))
+            #print(' Max of Outputs is ', np.max(Outputs.numpy()[:,1]), ', Min of Outputs is ', np.min(Outputs.numpy()[:,1]))
+            # np.max(Outputs.numpy()[0,0,0,:,:])
+            #print('\n','Shape of Outputs is ', Outputs.shape, ', Type of Outputs = ', type(Outputs))
+            #print(Counter(LABEL.numpy().reshape(-1)))
+    
+            loss = criterion(Outputs, LABEL) # LABEL shape: [1,1,1,96,104]?
+                # outputs: 2 probibilities of being each class at each pixel. labels: actual class of each pixel ?    
+            print('Train loss:',loss.item())  
+            
+            loss.backward() # backpropagate the error (gradients back into the network’s parameters)
+            optimizer.step()
+                # Does the update
         
-        # LABEL=Labels.long() No difference is incurred for labels by adding '.long()' regarding type and size.
-        # print('\n', 'Size of LABEL: ', LABEL.size(), 'Type of LABEL: ', type(LABEL)) 
-
-        acc = compute_acc(Predt, LABEL.long())
-        Pred_acc += acc
-        Total += Y*X
-        print('  Average acc:', Pred_acc/Total)
+                # print statistics
+            Running_loss += loss.item() 
+            
+            # plt.imshow(Predt[0,0,:,:].numpy())
+            t4=time.time()
+            print('3DCNN precition time for one dataset is {:.4f} sec'.format(t4-t3), end ='\n')
+            
+        t2 = time.time()
+        print('Total training time is {:.4f} sec'.format(t2-t1), end ='\n\n')
+         
+        torch.save(Net3D.state_dict(), 'model3D.ckpt') 
+    
+    plt.imshow(Predt[0,0,:,:].numpy())
+    
+    
+    #############################################################
+    print('\n','3D CNN Training ends, testing starts...')
+    t5 = time.time()
+    output_target = []  
+    
+    #Net3D.load_state_dict(torch.load('model3D.ckpt'))  
+    
+    with torch.no_grad():
+        Net3D.eval()
+        pred_acc, total = 0, 0
+        #Dia_X1, Dia_Y1, Flg = 0, 0, 0
+        #Dia_X2, Dia_Y2, = 0, 0
         
-        Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL.long())
+        #F_scores = []
+        Pred_True = [] 
+        Real_True = []
+        Corr_True = []
+        
+        for i in range(Num_Tst):# For Min13_14 forming 86 Training datasets. NO. 62, 80, 51 and 41 are used as test datasets
+        # For NO.13_14_Cat5_Len30_Stp7_NumEch35: NO. 311, 227, 160, 73, 284, 54, 236, 117, 330, 53 are used for test   
+        # For E040-E044 from Min13 to Max14, [38, 156, 53, 55, 52, 84, 185, 166, 138, 226] are left for testing
+          # For E040-044 from Min13 to Max14, [257, 105, 158, 280, 64, 240, 82, 177, 162, 120] are not used for training, ExaNor, IniArcht
+        # For E068-072, Non-concatenate: Datasets: [330, 112, 303, 316, 101, 96, 349, 302, 127, 265] not used for training.
+        # For E063-067, from Min13-Max14, [142, 264, 50, 8, 145, 99, 63, 310, 240, 5] are not used for training
+        # For E063-067, from Min13-Max14,[183, 175, 140, 293, 323, 258, 4, 219, 106, 327] are not used for ExaNorm training
+        # For E063-067, from Min13-Max14,[72, 38, 253, 349, 63, 338, 130, 230, 110, 116] are not used for NonNorm training
+        # For E063-067, from Min13-Max14,[265, 202, 310, 148, 249, 24, 145, 169, 119, 7] are not used for ExaNorm training, Archt2
+        # For E047-049, from Target13-Max14, [12, 62, 80, 48, 1, 28] are not used for ExaNorm training, Atcht3
+          # For E047-049, from Target13-Max14, [171, 100, 57, 155, 114, 187] are not used for ExaNorm training, InitArcht
+        # For E075-078, from Low13-Max14, [135, 84, 91, 46, 272, 95, 158, 113] are not used for ExaNorm Training, Archt3
+        # For E075-078, from Low13-Max14, [64, 54, 53, 222, 274, 94, 184, 46] are not used for ExaNorm Training, InitModel
+        # For E059-061, from Target13-Max14: [77, 89, 68, 35, 78, 172] are not used for ExaNorm Training, InitModel
+            print('\n','  Num of test input: {:}'.format(i+1))
+            
+            t7 = time.time()
+            F_scores = []
+            
+            Tmp=Rodmlst[Num_Dat-i-1]
+            
+            INPUTS = INputs[Tmp*Len_Frm:(Tmp+1)*Len_Frm,:,:]
+            INPUTS = INPUTS.unsqueeze(0).unsqueeze(0)
+            #print('  Shape of INPUTS is ', INPUTS.shape)# [1,1,50(length of a sub-video data),96,104]
+            
+            LABEL = Labels[int(Tag[Tmp]),:,:].unsqueeze(0).unsqueeze(0).unsqueeze(0) # Make it have 5 dimensions
+            print('  NO. sub-video data for Test is ',Tmp, ', NO. Label is ', int(Tag[Tmp]))
+            
+            Outputs = Net3D(INPUTS.float())
+            #print('Shape of Outputs is ', Outputs.shape)#[1,2,1,96,104]
+            _, Predt=torch.max(Outputs, dim=1)
+            output_target.append(Predt)
+            # print('   Type of output_target is ', type(output_target))# class 'list'
+            # print('output_target_size = ', len(output_target))# size is 1
+            # for i in rang(2)
+            # print(' '.join('%5s' % classes[pred[j,]] for j in range(2)))            
+            acc = compute_acc(Predt, LABEL.long())
+            pred_acc += acc
+            total += Y*X
+            print('Average acc:', pred_acc/total)
+                
+            Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL.long())
             # Total evaluated cells are 96*104*batch size
             # print('Pred_True = ', len(Pred_True))
             
-        for j in range(2): # Based on the number of classes
-            F_scores.append(2*Corr_True[j]/(Pred_True[j]+Real_True[j]))
-        print('Pred_outside pixels(0) =', Pred_True[0], ', Pred_onside pixels(0) =', Pred_True[1])
-        print('Real_outside pixels(0) =', Real_True[0], ', Real_onside pixels(0) =', Real_True[1])
-        print('  Corre_outside pixels(0) =', Corr_True[0], ', Corre_onside pixels(0) =', Corr_True[1])     
-        print('  F_scores:', F_scores)
-        
-        n,c,d,h,w=Outputs.size()# [1,2,1,96,104]
-        
-        Outputs = Outputs.transpose(1,2).transpose(2,3).transpose(3,4).contiguous().view(-1,c)
-        # After, outputs: [9984,2] ?
+            for j in range(2): # Based on the number of classes
+                F_scores.append(2*Corr_True[j]/(Pred_True[j]+Real_True[j]))
+            print(' Pred_outside=', Pred_True[0], ', Pred_onside=', Pred_True[1])
+            print(' Real_outside=', Real_True[0], ', Real_onside=', Real_True[1])
+            print('  Corre_outside=', Corr_True[0], ', Corre_onside=', Corr_True[1])
+            print(' F_scores:', F_scores)
             
-        LABEL = LABEL.view(-1).long() # Make labels to be 1 diamention by multiplying all original diamentions 
-        # : [9984]: from (1*1*1*96*104)
-        #print(' Max of LABEL is ', np.max(LABEL.numpy()), ', Min of LABEL is ', np.min(LABEL.numpy()))    
-        #print('\n','Shape of LABEL is ', LABEL.shape, ', Type of LABEL = ', type(LABEL))#[]
-        #print('Latest Output_size = ', Outputs.size())
-        # print('After Labels_size = ', Labels.size())
-        #print('   Max of Outputs is ', np.max(Outputs.numpy()[:,0]), ', Min of Outputs is ', np.min(Outputs.numpy()[:,0]))
-        #print(' Max of Outputs is ', np.max(Outputs.numpy()[:,1]), ', Min of Outputs is ', np.min(Outputs.numpy()[:,1]))
-        # np.max(Outputs.numpy()[0,0,0,:,:])
-        #print('\n','Shape of Outputs is ', Outputs.shape, ', Type of Outputs = ', type(Outputs))
-        #print(Counter(LABEL.numpy().reshape(-1)))
-
-        loss = criterion(Outputs, LABEL) # LABEL shape: [1,1,1,96,104]?
-            # outputs: 2 probibilities of being each class at each pixel. labels: actual class of each pixel ?    
-        print('Train loss:',loss.item())  
-        
-        loss.backward() # backpropagate the error (gradients back into the network’s parameters)
-        optimizer.step()
-            # Does the update
+            # print('input_size = ', input.size())
+            # print('orig output_size = ', outputs.size())
+            # print('orig labels_size = ', labels.size())
+            
+            n,c,d,h,w=Outputs.size()# [1,2,1,96,104]
+            Outputs = Outputs.transpose(1,2).transpose(2,3).transpose(3,4).contiguous().view(-1,c)
+            # After, Outputs size is [9984,2] 
+                
+            LABEL = LABEL.view(-1).long() # Make labels to be 1 diamention by multiplying all original diamentions 
+            
+            # print('Latest Outputs_size = ', Outputs.size())# [9984,2]
+            # print('After LABEL_size = ', LABEL.size()) # [9984]
+                
+            loss = criterion(Outputs, LABEL) # Outputs [1,2,1,96,104]. LABEL [1,1,1,96,104]!
+            print('Test loss:',loss.item())
+            t8 = time.time()
+            print('3DCNN prediction time for one dataset is {:.4f} sec'.format(t8-t7), end ='\n\n')
+            
+        t6 = time.time()
+        print('Total testing time is {:.4f} sec'.format(t6-t5))
     
-            # print statistics
-        Running_loss += loss.item() 
-        
-        # plt.imshow(Predt[0,0,:,:].numpy())
-        t4=time.time()
-        print('3DCNN precition time for one dataset is {:.4f} sec'.format(t4-t3), end ='\n')
-        
-    t2 = time.time()
-    print('Total training time is {:.4f} sec'.format(t2-t1), end ='\n\n')
-     
-    torch.save(Net3D.state_dict(), 'model3D.ckpt') 
-
-plt.imshow(Predt[0,0,:,:].numpy())
-
-
-#############################################################
-print('\n','3D CNN Training ends, testing starts...')
-t5 = time.time()
-output_target = []  
-
-#Net3D.load_state_dict(torch.load('model3D.ckpt'))  
-
-with torch.no_grad():
-    Net3D.eval()
-    pred_acc, total = 0, 0
-    #Dia_X1, Dia_Y1, Flg = 0, 0, 0
-    #Dia_X2, Dia_Y2, = 0, 0
-    
-    #F_scores = []
-    Pred_True = [] 
-    Real_True = []
-    Corr_True = []
-    
-    for i in range(Num_Tst):# For Min13_14 forming 86 Training datasets. NO. 62, 80, 51 and 41 are used as test datasets
-    # For NO.13_14_Cat5_Len30_Stp7_NumEch35: NO. 311, 227, 160, 73, 284, 54, 236, 117, 330, 53 are used for test   
-    # For E040-E044 from Min13 to Max14, [38, 156, 53, 55, 52, 84, 185, 166, 138, 226] are left for testing
-      # For E040-044 from Min13 to Max14, [257, 105, 158, 280, 64, 240, 82, 177, 162, 120] are not used for training, ExaNor, IniArcht
-    # For E068-072, Non-concatenate: Datasets: [330, 112, 303, 316, 101, 96, 349, 302, 127, 265] not used for training.
-    # For E063-067, from Min13-Max14, [142, 264, 50, 8, 145, 99, 63, 310, 240, 5] are not used for training
-    # For E063-067, from Min13-Max14,[183, 175, 140, 293, 323, 258, 4, 219, 106, 327] are not used for ExaNorm training
-    # For E063-067, from Min13-Max14,[72, 38, 253, 349, 63, 338, 130, 230, 110, 116] are not used for NonNorm training
-    # For E063-067, from Min13-Max14,[265, 202, 310, 148, 249, 24, 145, 169, 119, 7] are not used for ExaNorm training, Archt2
-    # For E047-049, from Target13-Max14, [12, 62, 80, 48, 1, 28] are not used for ExaNorm training, Atcht3
-      # For E047-049, from Target13-Max14, [171, 100, 57, 155, 114, 187] are not used for ExaNorm training, InitArcht
-    # For E075-078, from Low13-Max14, [135, 84, 91, 46, 272, 95, 158, 113] are not used for ExaNorm Training, Archt3
-    # For E075-078, from Low13-Max14, [64, 54, 53, 222, 274, 94, 184, 46] are not used for ExaNorm Training, InitModel
-    # For E059-061, from Target13-Max14: [77, 89, 68, 35, 78, 172] are not used for ExaNorm Training, InitModel
-        print('\n','  Num of test input: {:}'.format(i+1))
-        
-        t7 = time.time()
-        F_scores = []
-        
-        Tmp=Rodmlst[Num_Dat-i-1]
-        
-        INPUTS = INputs[Tmp*Len_Frm:(Tmp+1)*Len_Frm,:,:]
-        INPUTS = INPUTS.unsqueeze(0).unsqueeze(0)
-        #print('  Shape of INPUTS is ', INPUTS.shape)# [1,1,50(length of a sub-video data),96,104]
-        
-        LABEL = Labels[int(Tag[Tmp]),:,:].unsqueeze(0).unsqueeze(0).unsqueeze(0) # Make it have 5 dimensions
-        print('  NO. sub-video data for Test is ',Tmp, ', NO. Label is ', int(Tag[Tmp]))
-        
-        Outputs = Net3D(INPUTS.float())
-        #print('Shape of Outputs is ', Outputs.shape)#[1,2,1,96,104]
-        _, Predt=torch.max(Outputs, dim=1)
-        output_target.append(Predt)
-        # print('   Type of output_target is ', type(output_target))# class 'list'
-        # print('output_target_size = ', len(output_target))# size is 1
-        # for i in rang(2)
-        # print(' '.join('%5s' % classes[pred[j,]] for j in range(2)))            
-        acc = compute_acc(Predt, LABEL.long())
-        pred_acc += acc
-        total += Y*X
-        print('Average acc:', pred_acc/total)
-            
-        Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL.long())
-        # Total evaluated cells are 96*104*batch size
-        # print('Pred_True = ', len(Pred_True))
-        
-        for j in range(2): # Based on the number of classes
-            F_scores.append(2*Corr_True[j]/(Pred_True[j]+Real_True[j]))
-        print(' Pred_outside=', Pred_True[0], ', Pred_onside=', Pred_True[1])
-        print(' Real_outside=', Real_True[0], ', Real_onside=', Real_True[1])
-        print('  Corre_outside=', Corr_True[0], ', Corre_onside=', Corr_True[1])
-        print(' F_scores:', F_scores)
-        
-        # print('input_size = ', input.size())
-        # print('orig output_size = ', outputs.size())
-        # print('orig labels_size = ', labels.size())
-        
-        n,c,d,h,w=Outputs.size()# [1,2,1,96,104]
-        Outputs = Outputs.transpose(1,2).transpose(2,3).transpose(3,4).contiguous().view(-1,c)
-        # After, Outputs size is [9984,2] 
-            
-        LABEL = LABEL.view(-1).long() # Make labels to be 1 diamention by multiplying all original diamentions 
-        
-        # print('Latest Outputs_size = ', Outputs.size())# [9984,2]
-        # print('After LABEL_size = ', LABEL.size()) # [9984]
-            
-        loss = criterion(Outputs, LABEL) # Outputs [1,2,1,96,104]. LABEL [1,1,1,96,104]!
-        print('Test loss:',loss.item())
-        t8 = time.time()
-        print('3DCNN prediction time for one dataset is {:.4f} sec'.format(t8-t7), end ='\n\n')
-        
-    t6 = time.time()
-    print('Total testing time is {:.4f} sec'.format(t6-t5))
-
-np.save('Exp3DTrndat.npy', Rodmlst[Num_Dat-Num_Tst:Num_Dat])
-print('Unused training data is:', Rodmlst[Num_Dat-Num_Tst:Num_Dat])    
-plt.imshow(Predt[0,0,:,:])  
-output_target = torch.cat(tuple(output_target))
-print('Test_output', output_target.shape) # [3(# of test data),1,96,104]
-#print('   Type of output_target is ', type(output_target))# class 'torch.Tensor'
-# output_target is accumulated over all test samples
+    np.save('Exp3DTrndat.npy', Rodmlst[Num_Dat-Num_Tst:Num_Dat])
+    print('Unused training data is:', Rodmlst[Num_Dat-Num_Tst:Num_Dat])    
+    plt.imshow(Predt[0,0,:,:])  
+    output_target = torch.cat(tuple(output_target))
+    print('Test_output', output_target.shape) # [3(# of test data),1,96,104]
+    #print('   Type of output_target is ', type(output_target))# class 'torch.Tensor'
+    # output_target is accumulated over all test samples
