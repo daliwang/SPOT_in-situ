@@ -172,7 +172,7 @@ Net3D.load_state_dict(torch.load('model3D.ckpt'))
 # InputImags = []
 
 #LabelS = Read_label('Data\\Inputs\\Label') # Read the ground truth for actual measured nugget     
-LabelS = Read_label('Data\\Ground_Truth\\Target\\E065\\000013\\GrdTrh_relocated') # Read the ground truth for actual measured nugget 
+LabelS = Read_label('Ground_Truth/Target/E065/000013/GrdTrh_relocated') # Read the ground truth for actual measured nugget 
 #print('Type of LabelS is ', type(LabelS), ', Size of LabelS is ', len(LabelS)) # class 'list'. Size is the number of nugget ground truth
 
 Y=60 # For E040-44 96*104; For E50-54, 92*104; For E68-E72: 74*94. For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118

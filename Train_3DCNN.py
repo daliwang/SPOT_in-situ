@@ -8,7 +8,7 @@ Created on Wed May 29 14:34:15 2019
 import torch
 import torch.optim as optim
 from Load_inputs import Dataloder # Load the whole video
-from model import Net
+#from model import Net
 import torch.nn as nn
 import numpy as np
 import time
@@ -27,6 +27,8 @@ import random
 
 # net = Net()
 # print(net)
+
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 Net3D = NET()
 # Net3D = Net3D.double()
@@ -322,10 +324,12 @@ print('  Size of INPUT is ', INPUT.shape, ', Type of INPUT is ', type(INPUT))
 ################### Start to train CNN 3D model #############
 print('Frames updating finished,', '3D CNN starts...', '\n')
 
+with torch.cuda.device(0):
+
 #Net3D.load_state_dict(torch.load('model3D.ckpt'))  
 
 
-LabelS = Read_label('Data\\Inputs\\Label') # Read the ground truth for actual measured nugget     
+LabelS = Read_label('Inputs/Label') # Read the ground truth for actual measured nugget     
 # print('Type of Labels is ', type(Labels), ', Size of Labels is ', len(Labels)) # class 'list'. Size is the number of nugget ground truth
 
 Y=60 #For E040-44 96*104; For E68-72: 74*94; For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
