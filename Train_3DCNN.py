@@ -40,7 +40,7 @@ inputloader, Num_input = dataloader.getloader()
 print('Num of input images = ', Num_input, '\n')
 '''
 
-criterion = nn.CrossEntropyLoss(weight=torch.Tensor([0.3,1.0]))# Initial: 0.005,0.1. Real(0) 8293, (1)1691
+criterion = nn.CrossEntropyLoss(weight=torch.Tensor([0.3,1.0], device=cuda))# Initial: 0.005,0.1. Real(0) 8293, (1)1691
 # 80 out of 401 frames from E044_Max_13 over all time period 
   # 0.15, 1.0, Epo 35 LrINI=0.01 lr=0.01, Lr_decay=10: 0.993, 0.965; 8185(8197), 1679(1787);
   
@@ -473,19 +473,24 @@ for epoch in range (10):
         # Convert input to float is faster regarding running than converting model to double
         
         # Outputs = Net3D(NwFrame[0,0,3:390,:,:])
-        _, Predt=torch.max(Outputs, dim=1)
+        _, PRedt=torch.max(Outputs, dim=1)
         #print('\n','Size of Predt: ', Predt.size())
         # Predt_size: [1,1,96,104], delete the 2nd dimension of Outputs. Because pick the highest probility of belonging to a class at each pixel
         
         # LABEL=Labels.long() No difference is incurred for labels by adding '.long()' regarding type and size.
         # print('\n', 'Size of LABEL: ', LABEL.size(), 'Type of LABEL: ', type(LABEL)) 
 
-        acc = compute_acc(Predt, LABEL.long())
+        #Predt=PRedt.to('cpu')
+        
+        acc = compute_acc(PRedt, LABEL.long())
         Pred_acc += acc
         Total += Y*X
         print('  Average acc:', Pred_acc/Total)
         
-        Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL.long())
+        Predt=PRedt.to('cpu')
+        LABEL_cpu=LABEL.to('cpu')
+
+        Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL_cpu.long())
             # Total evaluated cells are 96*104*batch size
             # print('Pred_True = ', len(Pred_True))
             
