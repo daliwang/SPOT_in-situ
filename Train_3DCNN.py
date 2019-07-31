@@ -30,6 +30,8 @@ import random
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+cuda=torch.device('cuda')
+
 Net3D = NET()
 # Net3D = Net3D.double()
 '''
@@ -40,7 +42,7 @@ inputloader, Num_input = dataloader.getloader()
 print('Num of input images = ', Num_input, '\n')
 '''
 
-criterion = nn.CrossEntropyLoss(weight=torch.Tensor([0.3,1.0], device=cuda))# Initial: 0.005,0.1. Real(0) 8293, (1)1691
+criterion = nn.CrossEntropyLoss(weight=torch.Tensor([0.3,1.0]).cuda())# Initial: 0.005,0.1. Real(0) 8293, (1)1691
 # 80 out of 401 frames from E044_Max_13 over all time period 
   # 0.15, 1.0, Epo 35 LrINI=0.01 lr=0.01, Lr_decay=10: 0.993, 0.965; 8185(8197), 1679(1787);
   
@@ -324,7 +326,7 @@ print('  Size of INPUT is ', INPUT.shape, ', Type of INPUT is ', type(INPUT))
 ################### Start to train CNN 3D model #############
 print('Frames updating finished,', '3D CNN starts...', '\n')
 
-cuda = torch.device('cuda')
+#cuda = torch.device('cuda')
 #with torch.cuda.device(0):
 
 #Net3D.load_state_dict(torch.load('model3D.ckpt'))  
@@ -416,7 +418,7 @@ for i in range (int(Num_Dat/Num_EchDat)):# Store each sub-video dataset Tag to i
 Rodmlst=[] 
 Rodmlst=random.sample(range(0,Num_Dat),Num_Dat) # Permute sub-video datasets in a random order. from 0 to Tag.size-1, randomly select Tag.size number of values
 
-for epoch in range (10):
+for epoch in range (1):
     t1=time.time()
     Pred_acc, Total = 0, 0    
     Running_loss = 0.0
@@ -589,18 +591,23 @@ with torch.no_grad():
         
         Outputs = Net3D(INPUTS.float())
         #print('Shape of Outputs is ', Outputs.shape)#[1,2,1,96,104]
-        _, Predt=torch.max(Outputs, dim=1)
-        output_target.append(Predt)
+        _, PRedt=torch.max(Outputs, dim=1)
+        
+        #output_target.append(Predt)
         # print('   Type of output_target is ', type(output_target))# class 'list'
         # print('output_target_size = ', len(output_target))# size is 1
         # for i in rang(2)
         # print(' '.join('%5s' % classes[pred[j,]] for j in range(2)))            
-        acc = compute_acc(Predt, LABEL.long())
+        acc = compute_acc(PRedt, LABEL.long())
         pred_acc += acc
         total += Y*X
         print('Average acc:', pred_acc/total)
             
-        Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL.long())
+        Predt=PRedt.to('cpu')
+        LABEL_cpu=LABEL.to('cpu')
+
+        output_target.append(Predt)
+        Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL_cpu.long())
         # Total evaluated cells are 96*104*batch size
         # print('Pred_True = ', len(Pred_True))
         
