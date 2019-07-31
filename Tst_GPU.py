@@ -10,6 +10,10 @@ import random
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+x = torch.randn(1)
+# print(x)
+# print(x.item())
+
 # let us run this cell only if CUDA is available
 # We will use ``torch.device`` objects to move tensors in and out of GPU
 if torch.cuda.is_available():

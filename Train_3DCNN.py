@@ -324,7 +324,7 @@ print('  Size of INPUT is ', INPUT.shape, ', Type of INPUT is ', type(INPUT))
 ################### Start to train CNN 3D model #############
 print('Frames updating finished,', '3D CNN starts...', '\n')
 
-cuda = torch.device("cuda")
+cuda = torch.device('cuda')
 #with torch.cuda.device(0):
 
 #Net3D.load_state_dict(torch.load('model3D.ckpt'))  
@@ -333,12 +333,12 @@ Net3D.to(cuda)
 LabelS = Read_label('Inputs/Label') # Read the ground truth for actual measured nugget     
 # print('Type of Labels is ', type(Labels), ', Size of Labels is ', len(Labels)) # class 'list'. Size is the number of nugget ground truth
 
-LabelS = LabelS.to(cuda) # send the inputs and targets at every step to the GPU too
+#LabelS = LabelS.to(cuda) # send the inputs and targets at every step to the GPU too
 
 Y=60 #For E040-44 96*104; For E68-72: 74*94; For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
 X=78
 
-Labels = torch.tensor(np.zeros(((len(LabelS), Y, X))))
+Labels = torch.tensor(np.zeros(((len(LabelS), Y, X))), device=cuda)
 '''
 # For E068-072
 for i in range(8):
@@ -392,10 +392,13 @@ for i in range (len(LabelS)-1):
     Inputs=np.append(Inputs,np.load('Input_{:}.npy'.format(i+2)),axis=0)
     #Inputs=np.append(Inputs,np.load('Input_{:}.npy'.format(i+2)),axis=0)
 
-Inputs = Inputs.to(cuda) # send the inputs and targets at every step to the GPU too
+#Inputs = Inputs.to(cuda) # send the inputs and targets at every step to the GPU too
 
 INputs= transforms.ToTensor()(Inputs)
 INputs = INputs.permute(1,2,0) # shape is [# of frames, height, width]
+
+INputs = INputs.to(cuda)
+
 # print('Type of INputs is ', type(INputs), ', Size of INputs is ',INputs.shape)
 # INputs = INputs.unsqueeze(0)
 # print('Shape of INputs is ', INputs.shape)
