@@ -26,8 +26,13 @@ import os
 import os.path
 import random
 
+os.environ["CUDA_VISIBLE_DECIVES"]="0"
+
+cuda=torch.device("cuda")
 
 Net3D = NET()
+Net3D.to(cuda)
+
 #print(Net3D)
 '''
 dataloader = Dataloder()
@@ -40,7 +45,7 @@ print('Num of input images = ', Num_input, '\n')
 # print('num of testloader = ', testloader.__len__())
 # print('num of testloader = ', num_inputs)
 '''
-criterion = nn.CrossEntropyLoss(weight=torch.Tensor([0.3,1.0])) #0.005,1.0
+criterion = nn.CrossEntropyLoss(weight=torch.Tensor([0.3,1.0]).cuda()) #0.005,1.0
 #combines nn.LogSoftmax() and nn.NLLLoss()
 
 optimizer = optim.SGD(Net3D.parameters(), lr=0.01, momentum=0.9)
@@ -172,14 +177,14 @@ Net3D.load_state_dict(torch.load('model3D.ckpt'))
 # InputImags = []
 
 #LabelS = Read_label('Data\\Inputs\\Label') # Read the ground truth for actual measured nugget     
-LabelS = Read_label('Ground_Truth/Target/E065/000013/GrdTrh_relocated') # Read the ground truth for actual measured nugget 
+LabelS = Read_label('Ground_Truth/Target/E065/000015/GrdTrh_relocated') # Read the ground truth for actual measured nugget 
 #print('Type of LabelS is ', type(LabelS), ', Size of LabelS is ', len(LabelS)) # class 'list'. Size is the number of nugget ground truth
 
 Y=60 # For E040-44 96*104; For E50-54, 92*104; For E68-E72: 74*94. For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
 X=78
 
 #Labels = torch.tensor(np.zeros(((len(LabelS), Y, X))))
-Labels=torch.zeros([len(LabelS), Y, X], dtype=torch.float32)# Set data type because it will be float64 which 
+Labels=torch.zeros([len(LabelS), Y, X], device=cuda, dtype=torch.float32)# Set data type because it will be float64 which 
 #print(' Type of Labels is ' , type(Labels), ', size of Labels is ', Labels.shape)
 
 #for i in range(len(LabelS)): #For 105*185 to 104*184 (H*W)
@@ -262,7 +267,7 @@ print('Actual measured diameter average over Horizontal and Vertical in mm is', 
 
 #Inputs=np.load('Input_Max13_50_7_35_NoOtlrs.npy') # E040-E044
 #Inputs=np.load('Input_2_ExaNor.npy')
-Inputs=np.load('Input_Target13_30_7_35_E65_ExaNor.npy')
+Inputs=np.load('Input_Target15_30_7_35_E65_ExaNor.npy')
 #Inputs=np.load('Input_Min15_30_7_35_NoOtlrs.npy')
 #Inputs=np.load('Input_pix_E043_High15.npy') # E040-E044
 #Nam='Input_pix_E043_High15'
@@ -272,6 +277,8 @@ Inputs=np.load('Input_Target13_30_7_35_E65_ExaNor.npy')
 
 INputs= transforms.ToTensor()(Inputs)
 INputs = INputs.permute(1,2,0) # shape is [# of considered selected frames, height, width]
+
+INputs=INputs.to(cuda)
 # print('Type of INputs is ', type(INputs), ', Size of INputs is ',INputs.shape) # torch.Tensor
 # INputs = INputs.unsqueeze(0)
 # print('Shape of INputs is ', INputs.shape)
@@ -463,7 +470,7 @@ with torch.no_grad():
         print(' NO.1 pixel value in Pag1Out is ', Outputs.numpy()[0,0,0,15,5], ', NO.1 pixel value in Pag2Out is ', Outputs.numpy()[0,1,0,15,5])
         print(' NO.2 pixel value in Pag1Out is ', Outputs.numpy()[0,0,0,50,60], ', NO.2 pixel value in Pag2Out is ', Outputs.numpy()[0,1,0,50,60])
         '''
-        _, Predt=torch.max(Outputs, dim=1)
+        _, PRedt=torch.max(Outputs, dim=1)
         '''
         print('Shape of Predt is ', Predt.shape, 'Type of Predt = ', type(Predt))#[1,1,92,104], 'torch.Tensor'
         print('   Final class of NO.1 pixel is ', Predt.numpy()[0,0,15,5],',   Final class of NO.2 pixel is ', Predt.numpy()[0,0,50,60])   
@@ -504,7 +511,7 @@ with torch.no_grad():
         # print('pred row = ', Pred.shape[0], ', pred_column = ', Pred.shape[1])
         # print('labels size = ', labels.size())
         
-        output_target.append(Predt)
+        # output_target.append(Predt)
         # print('   Type of output_target is ', type(output_target))# class 'list'
         # pred store to output_target
         # pred_size is [8(batch size),96,104]
@@ -512,12 +519,17 @@ with torch.no_grad():
         # print('output_target_size = ', len(output_target))# size is 1
         # for i in rang(2)
         # print(' '.join('%5s' % classes[pred[j,]] for j in range(2)))            
-        acc = compute_acc(Predt, LABEL.long())
+        acc = compute_acc(PRedt, LABEL.long())
         pred_acc += acc
         total += Y*X
         print('Average acc:', pred_acc/total)
-            
-        Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL.long())
+          
+        Predt=PRedt.to('cpu')
+        LABEL_cpu=LABEL.to('cpu')
+
+        output_target.append(Predt)
+        
+        Pred_True, Real_True, Corr_True = compute_F(Predt, LABEL_cpu.long())
         # Total evaluated cells are 96*104*batch size
         # print('Pred_True = ', len(Pred_True))
         

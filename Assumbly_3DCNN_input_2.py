@@ -8,7 +8,7 @@ Created on Thu Jul  4 02:38:04 2019
 import torch
 import torch.optim as optim
 from Load_inputs import Dataloder # Load the whole video
-from model import Net
+#from model import Net
 import torch.nn as nn
 import numpy as np
 import time
