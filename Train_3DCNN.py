@@ -339,8 +339,8 @@ LabelS = Read_label('Inputs/Label') # Read the ground truth for actual measured 
 
 #LabelS = LabelS.to(cuda) # send the inputs and targets at every step to the GPU too
 
-Y=60 #For E040-44 96*104; For E68-72: 74*94; For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
-X=78
+Y=92 #For E040-44 96*104; For E50-54: 92*104; For E68-72: 74*94; For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
+X=104
 
 Labels = torch.tensor(np.zeros(((len(LabelS), Y, X))), device=cuda)
 '''
@@ -350,19 +350,19 @@ for i in range(8):
 for i in range(2):
     Labels[i+8,:,:]=LabelS[i+8][0,:,1:95]
 '''
-#for i in range(10): #For E040-044
-#    Labels[i,:,:] = LabelS[i][0,:,:] 
+for i in range(10): #For E040-044 OR E50-54
+    Labels[i,:,:] = LabelS[i][0,:,:] 
 
 #for i in range(6):# For E047-049
 #    Labels[i,:,:]=LabelS[i][0,1:105,1:185]
 
    
 # For E063-067
-Lab=4
-for i in range(Lab):
-    Labels[i,:,:] = LabelS[i][0,:,1:79]
-for i in range(6):
-    Labels[i+Lab,:,:]=LabelS[i+Lab][0,5:65,1:79]
+#Lab=4
+#for i in range(Lab):
+#    Labels[i,:,:] = LabelS[i][0,:,1:79]
+#for i in range(6):
+#    Labels[i+Lab,:,:]=LabelS[i+Lab][0,5:65,1:79]
 
 #for i in range(10): #For E075-76 (81*100 to 66*90)
 #    Labels[i,:,:] = LabelS[i][0,7:73,5:95] 
@@ -420,7 +420,7 @@ for i in range (int(Num_Dat/Num_EchDat)):# Store each sub-video dataset Tag to i
 Rodmlst=[] 
 Rodmlst=random.sample(range(0,Num_Dat),Num_Dat) # Permute sub-video datasets in a random order. from 0 to Tag.size-1, randomly select Tag.size number of values
 
-for epoch in range (1):
+for epoch in range (10):
     t1=time.time()
     Pred_acc, Total = 0, 0    
     Running_loss = 0.0
