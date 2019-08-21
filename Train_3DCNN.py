@@ -339,8 +339,8 @@ LabelS = Read_label('Inputs/Label') # Read the ground truth for actual measured 
 
 #LabelS = LabelS.to(cuda) # send the inputs and targets at every step to the GPU too
 
-Y=92 #For E040-44 96*104; For E50-54: 92*104; For E68-72: 74*94; For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
-X=104
+Y=66 #For E040-44 96*104; For E50-54: 92*104; For E68-72: 74*94; For E63-67: 60*78; For E47-49: 104*184; For E75-78: 66*90; For E59-61: 102*118
+X=90
 
 Labels = torch.tensor(np.zeros(((len(LabelS), Y, X))), device=cuda)
 '''
@@ -350,8 +350,8 @@ for i in range(8):
 for i in range(2):
     Labels[i+8,:,:]=LabelS[i+8][0,:,1:95]
 '''
-for i in range(10): #For E040-044 OR E50-54
-    Labels[i,:,:] = LabelS[i][0,:,:] 
+#for i in range(10): #For E040-044 OR E50-54
+#    Labels[i,:,:] = LabelS[i][0,:,:] 
 
 #for i in range(6):# For E047-049
 #    Labels[i,:,:]=LabelS[i][0,1:105,1:185]
@@ -364,8 +364,10 @@ for i in range(10): #For E040-044 OR E50-54
 #for i in range(6):
 #    Labels[i+Lab,:,:]=LabelS[i+Lab][0,5:65,1:79]
 
-#for i in range(10): #For E075-76 (81*100 to 66*90)
-#    Labels[i,:,:] = LabelS[i][0,7:73,5:95] 
+for i in range(4): #For E075-76 (81*100 to 66*90)
+    Labels[i,:,:] = LabelS[i][0,7:73,5:95] 
+for i in range(4): #For E77-78
+    Labels[i+4,:,:]=LabelS[i+4][0,:,:]
 
 #for i in range(6):
 #    Labels[i,:,:] = LabelS[i][0,1:103,1:119]
@@ -387,13 +389,13 @@ Labels = 255 * Labels
 #for i in range (9): 
 #    Inputs=np.append(Inputs,np.load('Input_{:}_NoOtlrs.npy'.format(i+2)),axis=0)
 
-Inputs=np.load('Input_{:}.npy'.format(1)) # Load E068-72
+Inputs=np.load('Input_{:}_ExaNor.npy'.format(1)) # Load E068-72
 #Inputs=np.load('Input_{:}.npy'.format(1)) # Load E050-E054
 #Inputs=np.load('Input_pix_{:}.npy'.format(1))
 
 for i in range (len(LabelS)-1): 
     #Inputs=np.append(Inputs,np.load('Input_pix_{:}.npy'.format(i+2)),axis=0)
-    Inputs=np.append(Inputs,np.load('Input_{:}.npy'.format(i+2)),axis=0)
+    Inputs=np.append(Inputs,np.load('Input_{:}_ExaNor.npy'.format(i+2)),axis=0)
     #Inputs=np.append(Inputs,np.load('Input_{:}.npy'.format(i+2)),axis=0)
 
 #Inputs = Inputs.to(cuda) # send the inputs and targets at every step to the GPU too
